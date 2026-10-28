@@ -238,5 +238,5 @@ def new_job_dir(kind="job", keep=40):
 
 
 def kit_root():
-    """Корень набора (папка, где лежат mcukit/, knowledge/, skill/)."""
+    """Корень набора — папка SKILL.md, рядом mcukit/ и knowledge/."""
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

@@ -1,18 +1,19 @@
-# MCU-Kit
+# MCU-Skill
 
 Инструмент для сборки и прошивки микроконтроллеров Cortex-M скриптами:
 библиотека на Python поверх SEGGER J-Link Commander (или ST-Link через
 STM32CubeProgrammer) и arm-none-eabi-gcc, база проверенного знания и
-правила её ведения. Подключается к Claude Code как скилл `/mcu` и к
-Kimi Code как `/skill:mcu`.
+правила её ведения. Скилл агента `mcu`: клон репозитория и есть папка
+скилла.
 
-Соседние наборы с теми же правилами ведения:
-[Allegro-Kit](https://github.com/RungeKut/Allegro-Kit) (платы и схемы
-Cadence) и [SolidWorks-Kit](https://github.com/RungeKut/SolidWorks-Kit).
+Общие правила ведения, проверки и хук — соседний скилл
+[Skill-Skill](https://github.com/RungeKut/Skill-Skill); по тем же правилам
+ведутся [Allegro-Skill](https://github.com/RungeKut/Allegro-Skill) (платы и
+схемы Cadence) и [SolidWorks-Skill](https://github.com/RungeKut/SolidWorks-Skill).
 
 ```
-MCU-Kit/
-├── skill/SKILL.md          точка входа для ИИ (подключён как скилл)
+mcu/                        клон MCU-Skill в папке скиллов агента
+├── SKILL.md                точка входа для ИИ
 ├── mcukit/                 библиотека Python
 │   ├── env.py              поиск J-Link, ST-Link, GCC, make; рабочие папки
 │   ├── jlink.py            probe, info, read32, watch, save, flash (GD32)
@@ -25,8 +26,8 @@ MCU-Kit/
 ├── templates/blink_f4/     blink без библиотек для GD32F4 / STM32F4
 ├── templates/counter_l0/   счётчик без GPIO для STM32L0 (Cortex-M0+)
 ├── tests/                  проверки: сборка — без железа, остальное — с платой
-├── tools/setup.ps1         установка на машине
-├── tools/check_docs.py     проверка целостности базы и стоп-слов
+├── tools/check_docs.py     обёртка общей проверки skill-skill
+├── tools/kit_local.py      особое набора для неё (расширения, стоп-слова)
 └── CHANGELOG.md
 ```
 
@@ -62,20 +63,13 @@ MCU-Kit/
 
 ## Установка на новой машине
 
-```powershell
-git clone https://github.com/RungeKut/MCU-Kit.git
-cd MCU-Kit
-powershell -ExecutionPolicy Bypass -File tools\setup.ps1
+```bash
+git clone https://github.com/RungeKut/MCU-Skill.git "<папка скиллов агента>/mcu"
 ```
 
-Либо двойной щелчок по `Install-skill.bat`. После установки —
-**перезапустить Claude Code / Kimi Code**.
-
-Перезапуск нужен один раз — чтобы агент зарегистрировал скилл. Дальше
-обновления набора (`git pull`) перезапуска не требуют: база знаний,
-библиотека и тело SKILL.md читаются с диска в момент использования.
-Перезапуск (в Kimi Code можно попробовать `/reload`) понадобится, только
-если поменялся frontmatter SKILL.md — имя или description с триггерами.
+Рядом нужен скилл skill-skill (общие правила, проверки, хук). Настройка
+клона — skill-skill, `knowledge/40_СРЕДА/40-01`; программы и их проверка —
+`knowledge/40_СРЕДА/40-01` здесь. Обновление — `git pull` в клоне.
 
 Нужны: SEGGER J-Link Software и/или STM32CubeProgrammer (можно только
 что-то одно — набор находит то, что есть), arm-none-eabi-gcc и make
@@ -85,8 +79,8 @@ STM32CubeProgrammer, если он тоже её часть), Python 3.11+.
 ## Быстрый старт
 
 ```python
-import os, sys
-sys.path.insert(0, os.environ["MCUKIT_HOME"])   # ставит tools/setup.ps1
+import sys
+sys.path.insert(0, r"<папка скиллов>/mcu")     # корень набора
 import mcukit as mk
 
 mk.utf8_console()
@@ -105,8 +99,10 @@ print(mk.stlink.info())                          # ID, флеш, напряже�
 
 Новый проект: `templates/blink_f4` (GD32/STM32F4, со светодиодами) или
 `templates/counter_l0` (STM32L0, без единого обращения к GPIO — для
-первой проверки записи на неизвестной плате). Поправить `link.ld`,
-`project.py`, запустить `python run.py`.
+первой проверки записи на неизвестной плате). Скопировать в проект,
+поправить `link.ld`, `project.py` (в нём же `KIT` — корень набора, если
+проект вне папки скиллов), запустить `python run.py`
+(`knowledge/20_ПРИЁМЫ/20-05`).
 
 ## Как обратиться к набору
 
@@ -114,7 +110,7 @@ print(mk.stlink.info())                          # ID, флеш, напряже�
 /mcu подключись к плате через ST-Link, проверь связь и прошей blink
 ```
 
-В Kimi Code то же самое — `/skill:mcu ...`. Без команды набор подключается
+Без команды набор подключается
 сам, когда в запросе есть J-Link, ST-Link, STM32CubeProgrammer, SWD,
 прошивка, GD32, STM32, Cortex-M,
 arm-none-eabi-gcc — или ошибки вида «Could not connect to the target
@@ -171,20 +167,18 @@ Python 3.12: `probe`, `info`, `read32`, `watch`, `save`, `flash`,
 ```
 python tests\test_build.py       сборка шаблона — без железа
 python tests\test_hw.py          зонд, ядро, запись, сверка, счётчик — нужна плата
-python tools\check_docs.py       целостность базы знаний
+python tools\check_docs.py       целостность базы, стоп-слова, git (общая, skill-skill)
 ```
 
 ## Работа с нескольких машин
 
-В начале — `git pull --rebase`; после каждой правки набора — `git diff`,
+По общим правилам skill-skill (`knowledge/40_СРЕДА/40-02` там): в начале
+`git pull --rebase`; после каждой правки — `git diff`,
 `python tools/check_docs.py --project "<папка проекта>"`, коммит, `git
-push`. Без права записи правка уходит pull request'ом из своего форка;
-владелец разбирает открытые PR при каждом pull (`gh pr list`). Порядок —
-`knowledge/40_СРЕДА/40-02`. **В набор не попадает ничего о
-проектируемом изделии** — ни в файлы, ни в текст коммита. Приметы изделия — в `tools/stoplist.txt`: он
-локальный (`.gitignore`), его заводит `setup.ps1`. Автор коммитов
-задаётся для клона публичным именем. Подробности —
-`knowledge/40_СРЕДА/40-02`.
+push`; без права записи — pull request из форка; коммиты без соавторов,
+автор задан для клона. **В набор не попадает ничего о проектируемом
+изделии** — ни в файлы, ни в текст коммита; приметы изделия — в локальный
+стоп-лист. Особенности набора — `knowledge/40_СРЕДА/40-02` здесь.
 
 ---
 

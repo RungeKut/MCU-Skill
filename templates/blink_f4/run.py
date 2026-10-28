@@ -3,30 +3,48 @@
 
 Запуск:  python run.py            собрать, прошить, проверить
          python run.py --build    только собрать
+         python run.py --kit <папка скилла mcu> ...
 """
 import os
 import sys
 import time
 
-
-def kit_root():
-    """Корень MCU-Kit: MCUKIT_HOME, иначе junction скилла."""
-    env = os.environ.get("MCUKIT_HOME")
-    if env and os.path.isdir(os.path.join(env, "mcukit")):
-        return env
-    link = os.path.join(os.path.expanduser("~"), ".claude", "skills", "mcu")
-    root = os.path.dirname(os.path.realpath(link))
-    if os.path.isdir(os.path.join(root, "mcukit")):
-        return root
-    raise RuntimeError("MCU-Kit не найден: запустите tools/setup.ps1")
-
-
-sys.path.insert(0, kit_root())
-import mcukit as mk         # noqa: E402
-
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import project as P         # noqa: E402
+
+
+def is_kit(d):
+    """Папка скилла, а не одноимённая рабочая папка mcukit в Temp."""
+    return os.path.isfile(os.path.join(d, "SKILL.md")) and \
+        os.path.isfile(os.path.join(d, "mcukit", "__init__.py"))
+
+
+def kit_root(argv):
+    """Корень скилла mcu (папка с mcukit/): --kit <папка>, иначе KIT из
+    project.py, иначе вверх от проекта — сам набор (шаблон запущен на
+    месте) или соседний скилл mcu (проект внутри папки скиллов)."""
+    given = getattr(P, "KIT", None)
+    if "--kit" in argv:
+        i = argv.index("--kit")
+        given = argv[i + 1] if i + 1 < len(argv) else ""
+    if given is not None:
+        if is_kit(given):
+            return os.path.abspath(given)
+        raise RuntimeError("в %r нет mcukit/ — нужна папка скилла mcu"
+                           % given)
+    d = HERE
+    while os.path.dirname(d) != d:
+        d = os.path.dirname(d)
+        for cand in (d, os.path.join(d, "mcu")):
+            if is_kit(cand):
+                return cand
+    raise RuntimeError("скилл mcu не найден: python run.py --kit <папка "
+                       "скилла mcu> или KIT в project.py")
+
+
+sys.path.insert(0, kit_root(sys.argv[1:]))
+import mcukit as mk         # noqa: E402
 
 
 def main(argv):
